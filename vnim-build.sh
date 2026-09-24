@@ -9,8 +9,7 @@
 # Overrides: EQTY_SDK_WHL MIDDLEWARE_WHL VNIM_PLATFORM BASE_IMAGE BASE_TAG MODEL_NAME IMAGE_REF
 set -euo pipefail
 
-# keep buildx from adding provenance/SBOM attestations: they make a manifest index that
-# the classic docker image store won't load, so the built tag would vanish locally
+# no attestations: the manifest index they add won't load into the classic docker store
 export BUILDX_NO_DEFAULT_ATTESTATIONS=1
 
 probe() { docker run --rm --platform "$PLATFORM" --entrypoint bash "$1" -c "$2"; }
@@ -66,16 +65,20 @@ build_multinim() {
 
     local IMAGE_USER FLAVOR
     IMAGE_USER=$(docker run --rm --platform "$PLATFORM" --entrypoint id "$IMG" -un | tr -d '\r')
-    # serve_http vs pooling: disambiguated by init_app_state arity (4-arg vs 3-arg)
-    # shellcheck disable=SC2016  # $api is expanded in the container, not here
+    # flavor from init_app_state: arity in api_server.py, or the launchers entry.py when it's a shim
+    # shellcheck disable=SC2016  # $api/$entry expand in the container, not here
     FLAVOR=$(probe "$IMG" '
         api=$(find /opt /usr/local/lib -path "*/vllm/entrypoints/openai/api_server.py" -not -path "*vllm_nvext*" 2>/dev/null | head -1)
         [ -n "$api" ] || { echo MISSING; exit 0; }
         if grep -q "init_app_state(engine_client, app.state, args, supported_tasks)" "$api"; then echo vllm_serve_http
         elif grep -q "init_app_state(engine_client, app.state, args)" "$api"; then echo vllm_pooling
-        else echo UNRECOGNIZED; fi' | tr -d '\r')
+        else
+            entry=$(find /opt /usr/local/lib -path "*/vllm/entrypoints/launchers/api_server/entry.py" 2>/dev/null | head -1)
+            if [ -n "$entry" ] && grep -q "init_app_state(engine_client, app.state, args, supported_tasks)" "$entry"; then echo vllm_launchers
+            else echo UNRECOGNIZED; fi
+        fi' | tr -d '\r')
     case "$FLAVOR" in
-        vllm_serve_http|vllm_pooling) ;;
+        vllm_serve_http|vllm_pooling|vllm_launchers) ;;
         *) echo "error: vLLM api_server not found or unrecognized in $IMG ($FLAVOR)" >&2; exit 2 ;;
     esac
 
@@ -88,8 +91,9 @@ build_multinim() {
         --build-arg "IMAGE_USER=${IMAGE_USER:-root}" \
         --build-arg "MODEL_NAME=${MODEL_NAME:-}" \
         -f "$BUILD_DIR/Dockerfile.vllm" "$BUILD_DIR"
-    # containerd-store buildx can land the build dangling; tag the built id explicitly
-    docker tag "$(cat "$iid")" "$OUTPUT_REF"; rm -f "$iid"
+    # containerd-store buildx may not apply -t; re-tag by built id if so
+    docker image inspect "$OUTPUT_REF" >/dev/null 2>&1 || docker tag "$(cat "$iid")" "$OUTPUT_REF"
+    rm -f "$iid"
 
     echo; echo "Built: $OUTPUT_REF"
     if [[ "$VLLM_VARIANT" == gpu ]]; then
@@ -146,8 +150,9 @@ build_nim() {
         --build-arg "PATCH_FAMILY=${PATCH_FAMILY}" \
         --build-arg "IMAGE_USER=${IMAGE_USER:-root}" \
         -f "$BUILD_DIR/Dockerfile" "$BUILD_DIR"
-    # containerd-store buildx can land the build dangling; tag the built id explicitly
-    docker tag "$(cat "$iid")" "$OUTPUT_REF"; rm -f "$iid"
+    # containerd-store buildx may not apply -t; re-tag by built id if so
+    docker image inspect "$OUTPUT_REF" >/dev/null 2>&1 || docker tag "$(cat "$iid")" "$OUTPUT_REF"
+    rm -f "$iid"
 
     echo; echo "Built: $OUTPUT_REF"
 }
@@ -166,9 +171,7 @@ USER root
 ARG PATCH_FAMILY=nim_sdk
 ARG IMAGE_USER=nim
 ARG MIDDLEWARE_WHL=eqty_vcomp_middleware-0.0.11-py3-none-any.whl
-# Offline mode: when set to a wheel filename present in the build context, both
-# eqty-sdk and the middleware are installed from local wheels and nothing eqty
-# is pulled from the network. Empty (the default) keeps the private-index path.
+# set to a context wheel → install eqty from local wheels, no network; empty → private index
 ARG EQTY_SDK_WHL=
 ARG EQTY_PYPI_HOST=eqty-pypi.westus2.cloudapp.azure.com
 
@@ -180,13 +183,7 @@ COPY patches/ /tmp/patches/
 COPY *.whl /tmp/wheels/
 
 # Apply the patch for this NIM's structural family.
-#   nim_sdk: older NIMs with /opt/nim/llm/nim_llm_sdk. Two NIM SDK API revs are
-#            supported:
-#              V1 → `shutdown_task = await serve_http(...)`  (e.g. llama-3.1-70b)
-#              V2 → bare `await serve_http(...)`             (e.g. llama-3.2-3b, deepseek, mistral)
-#            We detect V1 vs V2 from the file itself, then apply just the matching patch.
-#   nimlib:  newer NIMs with nimlib/nim_inference_api_builder/{api,vllm_api}.py.
-#            patches both files; unique context strings make line numbers tolerable.
+#   nim_sdk: V1/V2 differ by the serve_http call shape; detect per-file, apply the matching patch.
 RUN set -eux; \
     case "${PATCH_FAMILY}" in \
         nim_sdk) \
@@ -205,10 +202,8 @@ RUN set -eux; \
             done; \
             ;; \
         nimlib) \
-            # vllm/entrypoints/openai/api_server.py's build_and_serve() is never
-            # actually called at runtime for vllm-backed nimlib NIMs (e.g.
-            # gemma-4-31b-it) — nim_inference_api_builder drives the app instead.
-            # Patch that too, below.
+            # vllm-backed nimlib: nim_inference_api_builder drives the app, so patch both the
+            # vllm entrypoint and the nimlib base classes.
             for vllm_root in $(find /usr/local/lib /opt -path '*/vllm/entrypoints/openai/api_server.py' -printf '%h\n' 2>/dev/null | sed 's|/vllm/entrypoints/openai$||' | sort -u); do \
                 echo "patching vllm at $vllm_root"; \
                 (cd "$vllm_root" && patch -p1 -F10 < /tmp/patches/nimlib.patch); \
@@ -219,22 +214,15 @@ RUN set -eux; \
             done; \
             ;; \
         nimlib_sglang) \
-            # Newer nimlib NIMs whose /opt/nim/inference.py imports SGLangNIMApiInterface
-            # (e.g. qwen3.6-27b). There is no standalone vllm package — the FastAPI app is
-            # constructed by nimlib's base classes (NIMApiInterface in api.py /
-            # HttpNIMApiInterface in http_api.py), so we patch those instead. The patch is
-            # runtime-agnostic and would also work for vllm-backed nimlib NIMs, but we keep
-            # the existing `nimlib` branch separate so already-validated builds aren't
-            # disturbed.
+            # sglang-backed nimlib (no vllm package): the app comes from nimlib's base classes,
+            # so patch those (api.py / http_api.py) instead of a vllm entrypoint.
             for nimlib_root in $(find /usr/local/lib /opt -path '*/nimlib/nim_inference_api_builder/sglang_api.py' -printf '%h\n' 2>/dev/null | sed 's|/nimlib/nim_inference_api_builder$||' | sort -u); do \
                 echo "patching nimlib base at $nimlib_root"; \
                 (cd "$nimlib_root" && patch -p1 -F10 < /tmp/patches/nimlib_sglang.patch); \
             done; \
             ;; \
         vllm_nvext) \
-            # Older NIMs (e.g. phi-3-mini) ship NVIDIA's pre-nim_llm_sdk
-            # vllm_nvext/entrypoints/openai/api_server.py and run it as
-            # `python -m vllm_nvext.entrypoints.openai.api_server` directly.
+            # pre-nim_sdk NIMs (e.g. phi-3-mini): patch vllm_nvext's own api_server.
             for nvext_root in $(find /opt -path '*/vllm_nvext/entrypoints/openai/api_server.py' -printf '%h\n' 2>/dev/null | sed 's|/vllm_nvext/entrypoints/openai$||' | sort -u); do \
                 echo "patching vllm_nvext at $nvext_root"; \
                 (cd "$nvext_root" && patch -p1 -F10 < /tmp/patches/vllm_nvext.patch); \
@@ -245,14 +233,11 @@ RUN set -eux; \
     esac; \
     if ! grep -rq "IntegrityFastAPI" /opt/nim 2>/dev/null && \
        ! grep -rq "IntegrityFastAPI" /usr/local/lib/python3.12 2>/dev/null; then \
-        echo "FATAL: patch did not land — IntegrityFastAPI not found" >&2; exit 1; \
+        echo "FATAL: patch did not land - IntegrityFastAPI not found" >&2; exit 1; \
     fi
 
-# Install eqty-sdk + the middleware. Offline mode (EQTY_SDK_WHL set): both from
-# local wheels, nothing eqty from the network. Otherwise: middleware wheel +
-# eqty-sdk from the private index via the middleware's pin (>=2.3.0,<3.0.0),
-# resolved in the same pip pass. NIM-SDK-family NIMs have a venv at
-# /opt/nim/llm/.venv; vLLM-direct NIMs install into system Python instead.
+# eqty install: EQTY_SDK_WHL set → both wheels, no network; else middleware wheel +
+# sdk from the private index. NIM-SDK NIMs use the /opt/nim/llm/.venv, others system Python.
 RUN --mount=type=secret,id=eqty_pypi_user \
     --mount=type=secret,id=eqty_pypi_password \
     set -eux; \
@@ -277,34 +262,20 @@ RUN --mount=type=secret,id=eqty_pypi_user \
     fi; \
     rm -rf /tmp/patches /tmp/wheels
 
-# NIM infra/probe/metadata paths — never attested (the middleware hardcodes only its own routes).
+# infra/probe/metadata routes are never attested
 ENV EQTY_MIDDLEWARE_EXCLUDE_PATHS="/health*,/v1/models,/v1/health/*,/v1/metrics,/v1/version,/v1/license,/v1/manifest,/v1/metadata,/docs*,/openapi*,/redoc*"
-# CoSAI per-model signing — canonical name (supersedes the legacy USE_COSAI/USE_COSIA).
 ENV EQTY_MIDDLEWARE_ENABLE_COSAI="true"
 
-# nim_sdk (NIM 1.x) downloads model weights in-process over HTTP/2 on a tokio
-# runtime whose worker count comes from hwloc; on the TDX confidential PodVM
-# hwloc under-detects the topology and spins up only ~2 workers, so the
-# multi-file download deadlocks (bytes land in the socket but no worker drains
-# them, cache freezes at a few MB); not needed for NIM 2.x which downloads via
-# a subprocess
+# NIM 1.x downloads weights on a tokio runtime sized by hwloc, which under-detects on TDX
+# PodVMs and deadlocks the download; force enough workers.
 ENV NIM_RUNTIME_MAX_WORKER_THREADS="16"
 
-# Pre-create /opt/nim/.cache with IMAGE_USER ownership. The base NIM images
-# don't ship this directory, so without this line a fresh Docker named volume
-# mounted at /opt/nim/.cache materializes as root:root 755 and the runtime user
-# can't download model weights into it.
+# base NIMs ship no /opt/nim/.cache, so a fresh named volume mounts as root and the runtime
+# user can't write weights; pre-create it owned by IMAGE_USER.
 RUN mkdir -p /.eqty_sdk /opt/nim/.cache \
  && chown ${IMAGE_USER} /.eqty_sdk /opt/nim/.cache
 
-# Bake nginx-proxy tweaks into the image. Only present on nimlib-family NIMs;
-# nim_sdk-family NIMs serve vLLM/uvicorn directly with no nginx in front.
-#   1. Add X-EQTY-Request-ID to NIM_CORS_EXPOSE_HEADERS so browsers can read
-#      the request ID (nginx strips the backend's value via proxy_hide_header
-#      and re-adds its own).
-#   2. Add /integrity to NIM_PROXY_MGMT_ENDPOINT_PATTERN so /integrity/manifest
-#      and /integrity/logs are proxied to the backend instead of nginx's 404
-#      catchall.
+# nimlib NIMs front the backend with nginx: expose X-EQTY-Request-ID and route /integrity through.
 RUN if [ -f /opt/nim/scripts/nginx_env_vars.sh ]; then \
         sed -i \
             -e 's|"X-Request-Id"|"X-Request-Id, X-EQTY-Request-ID"|' \
@@ -328,24 +299,13 @@ FROM ${BASE_IMAGE}:${BASE_TAG}
 
 USER root
 
-# Which patch shape this vLLM uses (detected by the workflow):
-#   vllm_serve_http: build_app() sets app.root_path then CORS, and the serve
-#                    path calls init_app_state(..., supported_tasks) before
-#                    serve_http(). Matches both the older nimlib-era vLLM
-#                    (~0.9/0.10) and current releases (verified on v0.27.0,
-#                    where the site is build_and_serve(), called from
-#                    run_server_worker()).
-#   vllm_pooling:    the early-2026 shape with register_pooling_api_routers()
-#                    in build_app() and a bare init_app_state(engine_client,
-#                    app.state, args) inside run_server_worker().
+# Patch shape, detected by the caller: vllm_serve_http | vllm_pooling | vllm_launchers.
 ARG PATCH_FLAVOR=vllm_serve_http
 ARG IMAGE_USER=root
 ARG MODEL_NAME=""
 ARG MIDDLEWARE_WHL=eqty_vcomp_middleware-0.0.12-py3-none-any.whl
 ARG EQTY_SDK_VERSION=2.3.0
-# Offline mode: when set to a wheel filename present in the build context, both
-# eqty-sdk and the middleware are installed from local wheels and nothing eqty
-# is pulled from the network. Empty (the default) keeps the private-index path.
+# set to a context wheel → install eqty from local wheels, no network; empty → private index
 ARG EQTY_SDK_WHL=
 ARG EQTY_PYPI_HOST=eqty-pypi.westus2.cloudapp.azure.com
 
@@ -353,28 +313,23 @@ RUN apt-get update \
  && apt-get install -y --no-install-recommends patch python3 python3-pip \
  && rm -rf /var/lib/apt/lists/*
 
-COPY patches/vllm_serve_http.patch patches/vllm_pooling.patch /tmp/patches/
+COPY patches/vllm_serve_http.patch patches/vllm_pooling.patch patches/vllm_launchers.patch /tmp/patches/
 COPY *.whl /tmp/wheels/
 COPY vllm-entrypoint.sh /opt/eqty/entrypoint.sh
 
-# Patch every vllm installation in the image (stock images ship exactly one,
-# in a venv like /opt/venv or in dist-packages) and verify the patch landed.
+# patch every vllm install and verify the middleware landed
 RUN set -eux; \
     patched=""; \
     for vllm_root in $(find /opt /usr/local/lib -path '*/vllm/entrypoints/openai/api_server.py' -not -path '*vllm_nvext*' -printf '%h\n' 2>/dev/null | sed 's|/vllm/entrypoints/openai$||' | sort -u); do \
         echo "patching vllm at $vllm_root (${PATCH_FLAVOR})"; \
         (cd "$vllm_root" && patch -p1 -F10 < "/tmp/patches/${PATCH_FLAVOR}.patch"); \
-        grep -q "IntegrityFastAPI" "$vllm_root/vllm/entrypoints/openai/api_server.py" \
+        grep -rq "IntegrityFastAPI" "$vllm_root/vllm/entrypoints/" \
             || { echo "FATAL: patch did not land in $vllm_root" >&2; exit 1; }; \
         patched="yes"; \
     done; \
     [ -n "$patched" ] || { echo "FATAL: no vllm installation found" >&2; exit 1; }
 
-# Install eqty SDK and middleware into the same environment vllm lives in.
-# Stock vLLM images use a venv (/opt/venv) or dist-packages; prefer the
-# venv's own pip, fall back to system pip3 with --target.
-# eqty-sdk is on a private index; the middleware wheel pins eqty-sdk, so the
-# two must be installed in a single resolver pass.
+# install into the env vllm lives in: venv pip if present, else system pip3 --target
 RUN --mount=type=secret,id=eqty_pypi_user \
     --mount=type=secret,id=eqty_pypi_password \
     set -eux; \
@@ -404,18 +359,15 @@ RUN --mount=type=secret,id=eqty_pypi_user \
     fi; \
     rm -rf /tmp/patches /tmp/wheels
 
-# vLLM infra/probe/metadata paths — never attested (the middleware hardcodes
-# only its own routes).
+# infra/probe/metadata routes are never attested
 ENV EQTY_MIDDLEWARE_EXCLUDE_PATHS="/health*,/ping,/version,/metrics,/v1/models,/docs*,/openapi*,/redoc*"
-# CoSAI per-model signing — canonical name (supersedes the legacy USE_COSAI/USE_COSIA).
 ENV EQTY_MIDDLEWARE_ENABLE_COSAI="true"
 
 RUN mkdir -p /.eqty_sdk /tmp/api_logs \
  && chown ${IMAGE_USER} /.eqty_sdk /tmp/api_logs \
  && chmod +x /opt/eqty/entrypoint.sh
 
-# Model served at runtime; detected from the base image or set by the
-# workflow's model_name input. Override at run time with -e MODEL_NAME.
+# baked default model (optional); override at run with -e MODEL_NAME
 ENV MODEL_NAME="${MODEL_NAME}"
 
 EXPOSE 8080
@@ -428,10 +380,7 @@ __DOCKERFILE_VLLM__
 
 cat > "$d/vllm-entrypoint.sh" <<'__ENTRYPOINT__'
 #!/bin/bash
-# Entrypoint for eqty-patched vLLM images. The model comes from the
-# MODEL_NAME env var — baked at build time (detected from the base image
-# or passed to the workflow) or overridden at run time with -e MODEL_NAME.
-# Extra args are passed through to the vLLM api server.
+# serve $MODEL_NAME (baked, or -e at run); extra args pass through to vllm
 set -euo pipefail
 
 if [ -z "${MODEL_NAME:-}" ]; then
@@ -636,6 +585,39 @@ cat > "$d/patches/vllm_serve_http.patch" <<'__VLLM_SERVE_HTTP_PATCH__'
 
      return await serve_http(
 __VLLM_SERVE_HTTP_PATCH__
+
+cat > "$d/patches/vllm_launchers.patch" <<'__VLLM_LAUNCHERS_PATCH__'
+--- a/vllm/entrypoints/launchers/app.py
++++ b/vllm/entrypoints/launchers/app.py
+@@ -42,6 +42,9 @@
+     app.state.args = args
+     app.root_path = args.root_path
+ 
++    from eqty_middleware.fastapi import IntegrityFastAPI
++    app.add_middleware(IntegrityFastAPI, fastapi_app=app, log_directory="/tmp/api_logs", delay_start=True)
++
+     register_api_routers(args, app, supported_tasks, model_config)
+ 
+     # Endpoint plugins are attached last so their routes are registered after all core
+--- a/vllm/entrypoints/launchers/api_server/entry.py
++++ b/vllm/entrypoints/launchers/api_server/entry.py
+@@ -136,6 +136,15 @@
+     app = build_app(args, supported_tasks, model_config)
+     await init_app_state(engine_client, app.state, args, supported_tasks)
+ 
++    app.middleware_stack = app.build_middleware_stack()
++    current = app.middleware_stack
++    while hasattr(current, "app"):
++        from eqty_middleware.fastapi import IntegrityFastAPI
++        if isinstance(current, IntegrityFastAPI):
++            current.initalize_model()
++            break
++        current = current.app
++
+     logger.info("Starting vLLM server on %s", listen_address)
+ 
+     return await serve_http(
+__VLLM_LAUNCHERS_PATCH__
 
 }
 
