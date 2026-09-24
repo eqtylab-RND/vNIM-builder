@@ -2,6 +2,7 @@
 # Build a vCOMP-patched image; eqty installs from the two local wheels, never the network.
 #
 #   ./vnim-build.sh                     # multinim vLLM image; pick model with -e MODEL_NAME at run time
+#   ./vnim-build.sh MULTI               # same as above (explicit)
 #   VNIM_CPU=1 ./vnim-build.sh          # CPU base (builds + runs locally); default base is GPU
 #   NGC_API_KEY=nvapi-... ./vnim-build.sh nvcr.io/nim/meta/llama-3.2-3b-instruct   # a specific NIM
 #
@@ -48,7 +49,7 @@ main() {
     render_context "$BUILD_DIR"
     cp "$SDK_WHL" "$MW_WHL" "$BUILD_DIR"/
 
-    if [[ $# -eq 0 || -z "${1:-}" ]]; then
+    if [[ $# -eq 0 || -z "${1:-}" || "$1" == MULTI ]]; then
         build_multinim
     else
         build_nim "$1"
