@@ -198,7 +198,7 @@ RUN set -eux; \
                     echo "FATAL: $f matches neither V1 nor V2 NIM SDK shape" >&2; exit 1; \
                 fi; \
                 echo "patching $d (nim_sdk ${flavor})"; \
-                (cd "$d" && patch -p0 -F0 < "/tmp/patches/nim_sdk_${flavor}.patch"); \
+                (cd "$d" && patch -p0 -F5 < "/tmp/patches/nim_sdk_${flavor}.patch"); \
             done; \
             ;; \
         nimlib) \
