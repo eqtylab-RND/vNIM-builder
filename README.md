@@ -8,8 +8,9 @@ Published vNIMs are https://github.com/orgs/eqtylab/packages?tab=packages&q=vcom
 
 ```
 .
-├── build.sh                            local: pull → detect → build
-├── eqty_vcomp_middleware-0.0.10-...whl
+├── vnim-build.sh                       local: pull → detect → build
+├── eqty_sdk-2.4.2-...whl
+├── eqty_vcomp_middleware-0.0.13-...whl
 ```
 
 ## Local build
