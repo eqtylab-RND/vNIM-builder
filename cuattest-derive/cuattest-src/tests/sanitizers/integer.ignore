@@ -1,0 +1,5 @@
+# libstdc++ intentionally decrements unsigned loop counters past zero and
+# wraps hash accumulators. Exclude only this defined-overflow check in system
+# C++ headers; project arithmetic and all actual UB checks remain enabled.
+[unsigned-integer-overflow]
+src:*/include/c++/*

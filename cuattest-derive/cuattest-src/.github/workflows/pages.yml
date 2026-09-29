@@ -1,0 +1,59 @@
+# Publish docs/ to GitHub Pages.
+#
+# docs/index.html is the illustrated walkthrough and is self-contained — no
+# build step, nothing to fetch — so this uploads the directory as-is. The
+# markdown docs beside it are written to be read on GitHub itself, where they
+# render; here they are served as plain files.
+#
+# One manual step before the first run: Settings → Pages → Source →
+# "GitHub Actions". Without it the deploy job fails with a 404.
+
+name: Docs
+
+on:
+  push:
+    # The repo was initialised on master; accept either name so this works
+    # whichever the remote ends up using.
+    branches: [main, master]
+    paths:
+      - 'docs/**'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Never let two deploys race. Queued runs wait rather than cancel, so a push
+# during a deploy still ships.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # Deploying an empty or broken site silently is worse than failing here.
+      - name: Check the site has an entry point
+        run: |
+          test -f docs/index.html || { echo "docs/index.html is missing" >&2; exit 1; }
+          bytes=$(stat -c%s docs/index.html)
+          test "$bytes" -gt 4096 || { echo "docs/index.html is only $bytes bytes" >&2; exit 1; }
+          grep -q "<title>" docs/index.html || { echo "docs/index.html has no <title>" >&2; exit 1; }
+          echo "docs/index.html: $bytes bytes"
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs
+
+      - id: deploy
+        uses: actions/deploy-pages@v4

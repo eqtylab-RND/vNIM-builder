@@ -1,0 +1,466 @@
+{
+  "benchmark": "qwen397b-private-streams-ab-v1",
+  "captured_date": "2026-09-08",
+  "hostname": "Sarge-SRV2025 (probqa.com)",
+  "gpu": "8 x NVIDIA RTX PRO 6000 Blackwell Server Edition",
+  "driver": "610.57.04",
+  "torch": "2.14.0+cu130",
+  "cuda_runtime": "13.0",
+  "nvrtc": "13.3",
+  "model": "Qwen/Qwen3.5-397B-A17B",
+  "revision": "8472618112abcbd45acbcdc58436aff4233c23f7",
+  "excluded_prefixes": [
+    "mtp."
+  ],
+  "tensor_count": 1371,
+  "attested_bytes": 793604738912,
+  "independent_model_root": "077a5b303b1d6ed829a9c30fdb0102cf61e63fd5bcc562f8ebe153e10fdbe805",
+  "kernel_cid": "bafkr4ido4afrt5kucobcqxj5cnkks5jn3rhl5wifxagoj5vadqomcce5ou",
+  "cubin_cid": "bafkr4icgixawe242xqa4uaprbg6tqp4i5zhbgnqf73kqfqns34s5vtdve4",
+  "baseline_commit": "fc1900e3b30c75f8efff2bd8a01e090fa9678ffe",
+  "optimized_source_sha256": {
+    "src/cuattest/_native.cpp": "e90ac03780a96a398b51d9f0907e58068bd146b17043ea765d88e4590b288702",
+    "src/cuattest/_cuda.py": "8ff8bfe779c174dea4cf9d9814b64db6019cb55574186425f66a2b057b359868",
+    "src/cuattest/notary.py": "fe8f0c515c764f53656ecda32e851a61ff01baeb7560cd8b9f8b5db2d71542e0",
+    "src/cuattest/multigpu.py": "e7be4afa6c09e5ef73bfca98e943e535150a0c1954b6064f0fea452c8cadf5c7"
+  },
+  "methodology": [
+    "Same pinned pretrained checkpoint, CPU root and eight-GPU placement, resident throughout all batches.",
+    "Only Client.sign timed. Fresh IPC export and independent receipt verification occur outside timing.",
+    "baseline, baseline-b, baseline-c: three batches of 20; final-a, final-b: two batches of 20. Each excludes three warmups; all timed outliers retained.",
+    "streams-a and streams-b: development build before final fallback workspace retention and cleanup hardening, retained separately, not counted as final.",
+    "Trace batches: one warmup plus three measured requests, instrumented separately and excluded from ordinary comparisons.",
+    "Observed mean difference is smaller than run-to-run variability; no meaningful idle-host speedup is established.",
+    "One owned service per batch, fresh trusted local per-GPU keys, same CUBIN. No model digest reuse or cross-request IPC mapping reuse."
+  ],
+  "statistics": {
+    "baseline": {
+      "runs": 60,
+      "mean_seconds": 0.2687593329532926,
+      "stdev_seconds": 0.012941751603087415,
+      "median_seconds": 0.26513731048908085,
+      "min_seconds": 0.251904864970129,
+      "max_seconds": 0.3238226129906252,
+      "input_gib_per_second": 2750.0515072308813
+    },
+    "development": {
+      "runs": 40,
+      "mean_seconds": 0.26841225914977257,
+      "stdev_seconds": 0.013970512557640535,
+      "median_seconds": 0.26565139601007104,
+      "min_seconds": 0.24708181398455054,
+      "max_seconds": 0.341117164993193,
+      "input_gib_per_second": 2753.6074954689516
+    },
+    "final": {
+      "runs": 40,
+      "mean_seconds": 0.26822959770070154,
+      "stdev_seconds": 0.01613045753411115,
+      "median_seconds": 0.2648267340264283,
+      "min_seconds": 0.25965059496229514,
+      "max_seconds": 0.36331877997145057,
+      "input_gib_per_second": 2755.4826723308893
+    }
+  },
+  "devices": [
+    {
+      "ordinal": 0,
+      "uuid": "GPU-7e6b83cb-3828-f6c6-6bd5-7bc54c07215e",
+      "total": 102016548864,
+      "free": 100553261056,
+      "resident_weight_bytes": 99200789696,
+      "weight_utilization": 0.9723989960515745,
+      "free_after_load": 1336999936,
+      "torch_allocated": 99200811520,
+      "torch_reserved": 99216261120
+    },
+    {
+      "ordinal": 1,
+      "uuid": "GPU-dce56d85-3381-acd1-c99c-6f7b675f9434",
+      "total": 102016548864,
+      "free": 100553261056,
+      "resident_weight_bytes": 99200790848,
+      "weight_utilization": 0.9723990073438601,
+      "free_after_load": 1336999936,
+      "torch_allocated": 99200811520,
+      "torch_reserved": 99216261120
+    },
+    {
+      "ordinal": 2,
+      "uuid": "GPU-1043ddc1-5b75-18b9-c455-3077b68b4cc9",
+      "total": 102016548864,
+      "free": 100553261056,
+      "resident_weight_bytes": 99200787648,
+      "weight_utilization": 0.9723989759764002,
+      "free_after_load": 1336999936,
+      "torch_allocated": 99200811520,
+      "torch_reserved": 99216261120
+    },
+    {
+      "ordinal": 3,
+      "uuid": "GPU-86e3522b-bb5c-e7fb-9591-f6d61f3093b4",
+      "total": 102016548864,
+      "free": 100553261056,
+      "resident_weight_bytes": 99200788384,
+      "weight_utilization": 0.972398983190916,
+      "free_after_load": 1336999936,
+      "torch_allocated": 99202089472,
+      "torch_reserved": 99216261120
+    },
+    {
+      "ordinal": 4,
+      "uuid": "GPU-8921f5b6-a9e4-78ed-79c3-0049a8f57e75",
+      "total": 102016548864,
+      "free": 100553261056,
+      "resident_weight_bytes": 99200789440,
+      "weight_utilization": 0.9723989935421777,
+      "free_after_load": 1339097088,
+      "torch_allocated": 99201237504,
+      "torch_reserved": 99214163968
+    },
+    {
+      "ordinal": 5,
+      "uuid": "GPU-377ddbb8-bdae-34df-08e4-04464755db1a",
+      "total": 102016548864,
+      "free": 100553261056,
+      "resident_weight_bytes": 99199215904,
+      "weight_utilization": 0.9723835692211483,
+      "free_after_load": 1339097088,
+      "torch_allocated": 99200090112,
+      "torch_reserved": 99214163968
+    },
+    {
+      "ordinal": 6,
+      "uuid": "GPU-1a37d609-8902-bc9c-e764-c755c02d3866",
+      "total": 102016548864,
+      "free": 100553261056,
+      "resident_weight_bytes": 99200788224,
+      "weight_utilization": 0.972398981622543,
+      "free_after_load": 1339097088,
+      "torch_allocated": 99201236992,
+      "torch_reserved": 99214163968
+    },
+    {
+      "ordinal": 7,
+      "uuid": "GPU-1aa7166e-e2de-4e89-0fab-c18d3cc8551b",
+      "total": 102016548864,
+      "free": 100553261056,
+      "resident_weight_bytes": 99200788768,
+      "weight_utilization": 0.9723989869550113,
+      "free_after_load": 1332805632,
+      "torch_allocated": 99201236992,
+      "torch_reserved": 99220455424
+    }
+  ],
+  "batches": [
+    {
+      "label": "baseline",
+      "stage": "baseline",
+      "warmup_runs": 3,
+      "profiled": false,
+      "mean_seconds": 0.2729944238526514,
+      "stdev_seconds": 0.018305092147978735,
+      "samples_seconds": [
+        0.2835607510060072,
+        0.3238226129906252,
+        0.3229528680094518,
+        0.2738386450218968,
+        0.26787116698687896,
+        0.2644949179957621,
+        0.26432693999959156,
+        0.2660269230254926,
+        0.2635118159814738,
+        0.2690980100305751,
+        0.27115961705567315,
+        0.27562358300201595,
+        0.264914127998054,
+        0.26513572596013546,
+        0.2619726819684729,
+        0.251904864970129,
+        0.2637819450465031,
+        0.2680127369822003,
+        0.2681253440096043,
+        0.2697531990124844
+      ]
+    },
+    {
+      "label": "streams-a",
+      "stage": "development",
+      "warmup_runs": 3,
+      "profiled": false,
+      "mean_seconds": 0.2704221490013879,
+      "stdev_seconds": 0.01952490476299734,
+      "samples_seconds": [
+        0.26292392500909045,
+        0.2634918740368448,
+        0.27113886404549703,
+        0.2685934930341318,
+        0.27039351302664727,
+        0.2722591199562885,
+        0.2718740609707311,
+        0.265608521993272,
+        0.26310525299049914,
+        0.26262594503350556,
+        0.26535355497617275,
+        0.2636266030021943,
+        0.29095778201008216,
+        0.2859112449805252,
+        0.2740285850013606,
+        0.341117164993193,
+        0.26370100397616625,
+        0.25353227701270953,
+        0.24708181398455054,
+        0.25111837999429554
+      ]
+    },
+    {
+      "label": "baseline-b",
+      "stage": "baseline",
+      "warmup_runs": 3,
+      "profiled": false,
+      "mean_seconds": 0.26804484879830853,
+      "stdev_seconds": 0.012000206180023221,
+      "samples_seconds": [
+        0.2585882080020383,
+        0.2621322159538977,
+        0.2666092909639701,
+        0.266257481998764,
+        0.26265127200167626,
+        0.2642860490013845,
+        0.27291653299471363,
+        0.2649030610336922,
+        0.26579092198517174,
+        0.27216964901890606,
+        0.27205060300184414,
+        0.2631723430240527,
+        0.26311510894447565,
+        0.2651536909979768,
+        0.26165179599775,
+        0.267120958014857,
+        0.26796422398183495,
+        0.3166103210533038,
+        0.26389514096081257,
+        0.2638581070350483
+      ]
+    },
+    {
+      "label": "streams-b",
+      "stage": "development",
+      "warmup_runs": 3,
+      "profiled": false,
+      "mean_seconds": 0.2664023692981573,
+      "stdev_seconds": 0.0033009657366900253,
+      "samples_seconds": [
+        0.2681608650018461,
+        0.2678053599665873,
+        0.2684351099887863,
+        0.27048815501620993,
+        0.26569427002687007,
+        0.260883760987781,
+        0.26250804198207334,
+        0.2619603930506855,
+        0.26374570099869743,
+        0.26829094701679423,
+        0.265265145979356,
+        0.26661265798611566,
+        0.269560213026125,
+        0.2642117000068538,
+        0.2638726989971474,
+        0.26465245097642764,
+        0.26764019596157596,
+        0.2645326139754616,
+        0.2691784490016289,
+        0.27454865601612255
+      ]
+    },
+    {
+      "label": "streams-trace",
+      "stage": "development",
+      "warmup_runs": 1,
+      "profiled": true,
+      "mean_seconds": 0.2628366853265713,
+      "stdev_seconds": 0.001299918147848394,
+      "samples_seconds": [
+        0.2640677979798056,
+        0.2614774500252679,
+        0.2629648079746403
+      ]
+    },
+    {
+      "label": "final-a",
+      "stage": "final",
+      "warmup_runs": 3,
+      "profiled": false,
+      "mean_seconds": 0.2640849995485041,
+      "stdev_seconds": 0.0030506638261482456,
+      "samples_seconds": [
+        0.2646092609502375,
+        0.26765701500698924,
+        0.26816758897621185,
+        0.26280264201341197,
+        0.2623212299658917,
+        0.26256595202721655,
+        0.2617168379947543,
+        0.2631001109839417,
+        0.2625524330069311,
+        0.26486318703973666,
+        0.26588590804021806,
+        0.26911424804711714,
+        0.26114983099978417,
+        0.26156331098172814,
+        0.26119098102208227,
+        0.25965059496229514,
+        0.26545257796533406,
+        0.26095455198083073,
+        0.2655840319930576,
+        0.2707976970123127
+      ]
+    },
+    {
+      "label": "baseline-c",
+      "stage": "baseline",
+      "warmup_runs": 3,
+      "profiled": false,
+      "mean_seconds": 0.2652387262089178,
+      "stdev_seconds": 0.0029242944258396023,
+      "samples_seconds": [
+        0.2676391290151514,
+        0.2671925800386816,
+        0.26464666798710823,
+        0.26513889501802623,
+        0.26346341002499685,
+        0.27198535099159926,
+        0.2647844020393677,
+        0.2664253959665075,
+        0.2620573819731362,
+        0.26264783402439207,
+        0.26685463002650067,
+        0.2636299459845759,
+        0.2650134200230241,
+        0.26357253099558875,
+        0.2720579489832744,
+        0.26586693100398406,
+        0.26084804499987513,
+        0.26339977502357215,
+        0.2624419500352815,
+        0.2651083000237122
+      ]
+    },
+    {
+      "label": "final-b",
+      "stage": "final",
+      "warmup_runs": 3,
+      "profiled": false,
+      "mean_seconds": 0.272374195852899,
+      "stdev_seconds": 0.02210446793438115,
+      "samples_seconds": [
+        0.26479028101311997,
+        0.2647291199536994,
+        0.263832786004059,
+        0.2653335939976387,
+        0.263183597009629,
+        0.2720767370192334,
+        0.2725383100332692,
+        0.2690476910211146,
+        0.271882620989345,
+        0.26338692696299404,
+        0.26127711997833103,
+        0.2634560000151396,
+        0.2638695409987122,
+        0.2670186840114184,
+        0.2661189250065945,
+        0.266892257030122,
+        0.26516759902006015,
+        0.27417234500171617,
+        0.28539100202033296,
+        0.36331877997145057
+      ]
+    },
+    {
+      "label": "final-trace",
+      "stage": "final",
+      "warmup_runs": 1,
+      "profiled": true,
+      "mean_seconds": 0.26840598132306087,
+      "stdev_seconds": 0.0027732928502130017,
+      "samples_seconds": [
+        0.2657142079551704,
+        0.271254173014313,
+        0.26824956299969926
+      ]
+    }
+  ],
+  "profile": {
+    "tool": "Nsight Systems 2026.1.3",
+    "label": "final-trace",
+    "requests_including_warmup": 4,
+    "request_api_counts": {
+      "cuIpcOpenMemHandle_v2": 1816,
+      "cuMemAlloc_v2": 32,
+      "cuMemAllocHost_v2": 16,
+      "cuMemcpyHtoDAsync_v2": 32,
+      "cuLaunchCooperativeKernel": 64,
+      "cuMemcpyDtoHAsync_v2": 32,
+      "cuStreamSynchronize": 32,
+      "cuIpcCloseMemHandle": 1816
+    },
+    "context_syncs_inside_requests": 0,
+    "context_syncs_after_profiler_stop": 1,
+    "note": "All metadata/output copies and kernels use each device session stream. One cuCtxSynchronize is observed after cuProfilerStop, outside requests. Cold workspaces/staging allocated in first warmup only.",
+    "streams": [
+      {
+        "device": 0,
+        "stream_id": 20,
+        "kernels": 8,
+        "copies": 8
+      },
+      {
+        "device": 1,
+        "stream_id": 35,
+        "kernels": 8,
+        "copies": 8
+      },
+      {
+        "device": 2,
+        "stream_id": 50,
+        "kernels": 8,
+        "copies": 8
+      },
+      {
+        "device": 3,
+        "stream_id": 65,
+        "kernels": 8,
+        "copies": 8
+      },
+      {
+        "device": 4,
+        "stream_id": 80,
+        "kernels": 8,
+        "copies": 8
+      },
+      {
+        "device": 5,
+        "stream_id": 95,
+        "kernels": 8,
+        "copies": 8
+      },
+      {
+        "device": 6,
+        "stream_id": 110,
+        "kernels": 8,
+        "copies": 8
+      },
+      {
+        "device": 7,
+        "stream_id": 125,
+        "kernels": 8,
+        "copies": 8
+      }
+    ],
+    "steady_kernel_median_ms": {
+      "attest_measured_kernel": 9.4032915,
+      "measure_model_fused_kernel": 176.361515
+    }
+  },
+  "remote_artifacts": "/tmp/cuattest-streams.nGAaw2/results"
+}

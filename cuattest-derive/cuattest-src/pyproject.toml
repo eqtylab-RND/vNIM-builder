@@ -1,0 +1,53 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cuattest"
+version = "0.1.0"
+description = "A P-256 notary whose signing state is retained inside the GPU"
+readme = "README.md"
+requires-python = ">=3.10"
+# The host BLAKE3 implementation is a separate trust domain from the loaded
+# CUBIN.  In particular, a CUBIN must never be allowed to attest to its own
+# bytes. torch is needed only by clients that share their own tensors.
+#
+# cryptography is required because the service now signs as well as verifies:
+# it issues the IdentityAttestation binding a session's GPU DID to the CUBIN
+# and kernel source it loaded, which the GPU cannot check for itself. That
+# reverses this package's earlier "no cryptography in the base notary" stance.
+# Set CUATTEST_HOST_IDENTITY=0 to run without a service identity; receipts
+# then carry only GPU-signed statements.
+dependencies = ["blake3>=1.0", "cryptography"]
+
+[project.optional-dependencies]
+client = ["torch"]
+# NVRTC plus the runtime/CCCL headers cooperative_groups.h includes. Together
+# these keep `build-kernel` usable on hosts with no CUDA toolkit installation.
+build = [
+    "nvidia-cuda-nvrtc-cu12",
+    "nvidia-cuda-runtime-cu12",
+    "nvidia-cuda-cccl-cu12",
+]
+verify = ["cryptography"]
+benchmark = ["torch", "cryptography", "transformers", "safetensors", "huggingface_hub>=1.0", "numpy"]
+# Independent CPU oracles for opt-in device-crypto differential tests only.
+test-crypto = ["pytest", "cryptography", "ecdsa>=0.19"]
+
+[project.scripts]
+cuattest = "cuattest.cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+# The kernel source ships inside the package: it is hashed at startup and its
+# CID is part of the notary's identity, so it must travel with the code.
+[tool.setuptools.package-data]
+cuattest = [
+    "kernel/*.cu",
+    "cubins/*.cubin",
+    "cubins/*.source-blake3",
+]

@@ -1,0 +1,492 @@
+{
+  "benchmark": "qwen397b-multigpu-dispatch-ab-v1",
+  "captured_date": "2026-09-08",
+  "hostname": "Sarge-SRV2025 (probqa.com)",
+  "gpu": "8 x NVIDIA RTX PRO 6000 Blackwell Server Edition",
+  "driver": "610.57.04",
+  "torch": "2.14.0+cu130",
+  "cuda_runtime": "13.0",
+  "nvrtc": "13.3",
+  "model": "Qwen/Qwen3.5-397B-A17B",
+  "revision": "8472618112abcbd45acbcdc58436aff4233c23f7",
+  "excluded_prefixes": [
+    "mtp."
+  ],
+  "tensor_count": 1371,
+  "attested_bytes": 793604738912,
+  "independent_model_root": "077a5b303b1d6ed829a9c30fdb0102cf61e63fd5bcc562f8ebe153e10fdbe805",
+  "baseline_commit": "38dbbf0dec75da5b3decb82bc296cf032d4d6220",
+  "optimized_source_sha256": {
+    "src/cuattest/_native.cpp": "0c14c33a7ce7a249a36c5961689c5326d09301fa102a6dbaf1d7996eede618ed",
+    "src/cuattest/multigpu.py": "e7be4afa6c09e5ef73bfca98e943e535150a0c1954b6064f0fea452c8cadf5c7"
+  },
+  "kernel_cid": "bafkr4ido4afrt5kucobcqxj5cnkks5jn3rhl5wifxagoj5vadqomcce5ou",
+  "cubin_cid": "bafkr4icgixawe242xqa4uaprbg6tqp4i5zhbgnqf73kqfqns34s5vtdve4",
+  "methodology": [
+    "Identical weights and placement remained resident across all listed batches.",
+    "Each batch starts an owned local HTTP server, pins its new per-GPU public keys and stops it after all requests.",
+    "Only Client.sign is timed; each sample freshly exports IPC references and verifies its receipt and independent CPU root outside the timed interval.",
+    "All ordinary samples and outliers are retained. The trace batches are separately instrumented and excluded from latency summaries.",
+    "baseline and baseline-b are the 40-sample before result; batched-final-a and batched-final-b are the 40-sample final result.",
+    "parallel-* except parallel-trace are 80 development samples with concurrent dispatch but without batched native IPC imports.",
+    "ipc-serialized is the separate 10-sample import-batching prototype, excluded from final results."
+  ],
+  "statistics": {
+    "baseline": {
+      "runs": 40,
+      "mean_seconds": 1.574301099294098,
+      "stdev_seconds": 0.0161117164877295,
+      "median_seconds": 1.5693182290124241,
+      "min_seconds": 1.5667534929816611,
+      "max_seconds": 1.6466903659747913,
+      "input_gib_per_second": 469.47944646800727
+    },
+    "parallel": {
+      "runs": 80,
+      "mean_seconds": 0.2889309197977127,
+      "stdev_seconds": 0.015279794535883335,
+      "median_seconds": 0.28483121350291185,
+      "min_seconds": 0.2743578940280713,
+      "max_seconds": 0.38043624599231407,
+      "input_gib_per_second": 2558.057854064325
+    },
+    "final": {
+      "runs": 40,
+      "mean_seconds": 0.2720775595502346,
+      "stdev_seconds": 0.019154286998969535,
+      "median_seconds": 0.266292648477247,
+      "min_seconds": 0.25989067897899076,
+      "max_seconds": 0.3570039690239355,
+      "input_gib_per_second": 2716.512195612022
+    },
+    "speedup": 5.786221774028481,
+    "latency_reduction_percent": 82.71756529470558
+  },
+  "devices": [
+    {
+      "ordinal": 0,
+      "uuid": "GPU-7e6b83cb-3828-f6c6-6bd5-7bc54c07215e",
+      "total": 102016548864,
+      "free": 100553195520,
+      "resident_weight_bytes": 99200789696,
+      "weight_utilization": 0.9723989960515745,
+      "free_after_load": 1336934400,
+      "torch_allocated": 99200811520,
+      "torch_reserved": 99216261120
+    },
+    {
+      "ordinal": 1,
+      "uuid": "GPU-dce56d85-3381-acd1-c99c-6f7b675f9434",
+      "total": 102016548864,
+      "free": 100553195520,
+      "resident_weight_bytes": 99200790848,
+      "weight_utilization": 0.9723990073438601,
+      "free_after_load": 1336934400,
+      "torch_allocated": 99200811520,
+      "torch_reserved": 99216261120
+    },
+    {
+      "ordinal": 2,
+      "uuid": "GPU-1043ddc1-5b75-18b9-c455-3077b68b4cc9",
+      "total": 102016548864,
+      "free": 100553195520,
+      "resident_weight_bytes": 99200787648,
+      "weight_utilization": 0.9723989759764002,
+      "free_after_load": 1336934400,
+      "torch_allocated": 99200811520,
+      "torch_reserved": 99216261120
+    },
+    {
+      "ordinal": 3,
+      "uuid": "GPU-86e3522b-bb5c-e7fb-9591-f6d61f3093b4",
+      "total": 102016548864,
+      "free": 100553195520,
+      "resident_weight_bytes": 99200788384,
+      "weight_utilization": 0.972398983190916,
+      "free_after_load": 1336934400,
+      "torch_allocated": 99202089472,
+      "torch_reserved": 99216261120
+    },
+    {
+      "ordinal": 4,
+      "uuid": "GPU-8921f5b6-a9e4-78ed-79c3-0049a8f57e75",
+      "total": 102016548864,
+      "free": 100553195520,
+      "resident_weight_bytes": 99200789440,
+      "weight_utilization": 0.9723989935421777,
+      "free_after_load": 1339031552,
+      "torch_allocated": 99201237504,
+      "torch_reserved": 99214163968
+    },
+    {
+      "ordinal": 5,
+      "uuid": "GPU-377ddbb8-bdae-34df-08e4-04464755db1a",
+      "total": 102016548864,
+      "free": 100553195520,
+      "resident_weight_bytes": 99199215904,
+      "weight_utilization": 0.9723835692211483,
+      "free_after_load": 1339031552,
+      "torch_allocated": 99200090112,
+      "torch_reserved": 99214163968
+    },
+    {
+      "ordinal": 6,
+      "uuid": "GPU-1a37d609-8902-bc9c-e764-c755c02d3866",
+      "total": 102016548864,
+      "free": 100553195520,
+      "resident_weight_bytes": 99200788224,
+      "weight_utilization": 0.972398981622543,
+      "free_after_load": 1339031552,
+      "torch_allocated": 99201236992,
+      "torch_reserved": 99214163968
+    },
+    {
+      "ordinal": 7,
+      "uuid": "GPU-1aa7166e-e2de-4e89-0fab-c18d3cc8551b",
+      "total": 102016548864,
+      "free": 100553195520,
+      "resident_weight_bytes": 99200788768,
+      "weight_utilization": 0.9723989869550113,
+      "free_after_load": 1332740096,
+      "torch_allocated": 99201236992,
+      "torch_reserved": 99220455424
+    }
+  ],
+  "batches": [
+    {
+      "label": "baseline-b",
+      "warmup_runs": 3,
+      "mean_seconds": 1.575750817649532,
+      "stdev_seconds": 0.019668566888182217,
+      "samples_seconds": [
+        1.5685082700219937,
+        1.5697201270377263,
+        1.5686722249956802,
+        1.5689972210093401,
+        1.5683803780120797,
+        1.5682063960121013,
+        1.5706412909785286,
+        1.5717636260087602,
+        1.5728908979799598,
+        1.5709226370090619,
+        1.5722244759672321,
+        1.5668402870069258,
+        1.567852809035685,
+        1.5695810879697092,
+        1.5690869449754246,
+        1.6466903659747913,
+        1.572140590986237,
+        1.6155247970018536,
+        1.5670999439898878,
+        1.569271981017664
+      ],
+      "profiled": false
+    },
+    {
+      "label": "baseline",
+      "warmup_runs": 3,
+      "mean_seconds": 1.5728513809386642,
+      "stdev_seconds": 0.011897907028221083,
+      "samples_seconds": [
+        1.5684275059611537,
+        1.568310443952214,
+        1.6213135630241595,
+        1.5697953919880092,
+        1.5667534929816611,
+        1.5693644770071842,
+        1.5694604099844582,
+        1.5680874100071378,
+        1.568877389014233,
+        1.5691440050140955,
+        1.576170721964445,
+        1.57161038601771,
+        1.5680445409961976,
+        1.5815348509931937,
+        1.568211669975426,
+        1.568951325956732,
+        1.5684805209748447,
+        1.5694898839574307,
+        1.5725275200093165,
+        1.5724721089936793
+      ],
+      "profiled": false
+    },
+    {
+      "label": "baseline-trace",
+      "warmup_runs": 1,
+      "mean_seconds": 1.5681345153522368,
+      "stdev_seconds": 0.0006063718074979911,
+      "samples_seconds": [
+        1.568784069037065,
+        1.5675833610002883,
+        1.568036116019357
+      ],
+      "profiled": true
+    },
+    {
+      "label": "batched-final-a",
+      "warmup_runs": 3,
+      "mean_seconds": 0.2683640137489419,
+      "stdev_seconds": 0.012214130672572352,
+      "samples_seconds": [
+        0.26900876802392304,
+        0.2634125939803198,
+        0.26638031197944656,
+        0.26222051098011434,
+        0.2653535839635879,
+        0.2617115890025161,
+        0.2657348770298995,
+        0.2649126020260155,
+        0.31876867200480774,
+        0.26701322803273797,
+        0.27157919004093856,
+        0.2626241479883902,
+        0.26139102497836575,
+        0.2638316939701326,
+        0.26575642998795956,
+        0.2678180589573458,
+        0.2667528930469416,
+        0.2715860399766825,
+        0.26387901400448754,
+        0.26754504500422627
+      ],
+      "profiled": false
+    },
+    {
+      "label": "batched-final-b",
+      "warmup_runs": 3,
+      "mean_seconds": 0.27579110535152723,
+      "stdev_seconds": 0.023976359010643593,
+      "samples_seconds": [
+        0.26995546999387443,
+        0.26703696500044316,
+        0.2743104490218684,
+        0.27301120798802003,
+        0.2662049849750474,
+        0.2647962920018472,
+        0.2631867820164189,
+        0.26052931300364435,
+        0.26775721996091306,
+        0.26854493498103693,
+        0.2774302919860929,
+        0.3171524550416507,
+        0.266204915009439,
+        0.26307083101710305,
+        0.26110614597564563,
+        0.25989067897899076,
+        0.2635170710273087,
+        0.26992669800529256,
+        0.3051854320219718,
+        0.3570039690239355
+      ],
+      "profiled": false
+    },
+    {
+      "label": "batched-trace",
+      "warmup_runs": 1,
+      "mean_seconds": 0.26241106766974553,
+      "stdev_seconds": 0.0006909701397905025,
+      "samples_seconds": [
+        0.26266803697217256,
+        0.2629367350018583,
+        0.2616284310352057
+      ],
+      "profiled": true
+    },
+    {
+      "label": "ipc-serialized",
+      "warmup_runs": 3,
+      "mean_seconds": 0.2656610929931048,
+      "stdev_seconds": 0.003656025351215807,
+      "samples_seconds": [
+        0.26913203799631447,
+        0.2650177559698932,
+        0.27085409295978025,
+        0.2676730710081756,
+        0.27020366198848933,
+        0.26548446604283527,
+        0.26267688599182293,
+        0.26259052800014615,
+        0.26026183500653133,
+        0.2627165949670598
+      ],
+      "profiled": false
+    },
+    {
+      "label": "parallel-a",
+      "warmup_runs": 3,
+      "mean_seconds": 0.28393699130392636,
+      "stdev_seconds": 0.005140771217128116,
+      "samples_seconds": [
+        0.28395654598716646,
+        0.2802779169869609,
+        0.2818896670360118,
+        0.2818018270190805,
+        0.281572699022945,
+        0.28027646703412756,
+        0.29433770501054823,
+        0.28901430702535436,
+        0.28118713200092316,
+        0.28479847399285063,
+        0.2909297959995456,
+        0.2812866509775631,
+        0.28653986600693315,
+        0.2768364310031757,
+        0.2924635520321317,
+        0.28893075697124004,
+        0.2855888439808041,
+        0.2811565909651108,
+        0.2743578940280713,
+        0.2815367029979825
+      ],
+      "profiled": false
+    },
+    {
+      "label": "parallel-b",
+      "warmup_runs": 3,
+      "mean_seconds": 0.287359112946433,
+      "stdev_seconds": 0.007011702206275152,
+      "samples_seconds": [
+        0.29401903902180493,
+        0.29845958098303527,
+        0.2889302090043202,
+        0.3071119770174846,
+        0.2939179899985902,
+        0.28946898598223925,
+        0.2828859779983759,
+        0.2823150949552655,
+        0.2776448740041815,
+        0.28091602702625096,
+        0.2869488119613379,
+        0.28185465501155704,
+        0.29098481801338494,
+        0.28205195697955787,
+        0.2847636739606969,
+        0.2858130559907295,
+        0.28486395301297307,
+        0.2809489879873581,
+        0.2838267409824766,
+        0.28945584903704
+      ],
+      "profiled": false
+    },
+    {
+      "label": "parallel-final-a",
+      "warmup_runs": 3,
+      "mean_seconds": 0.29473058124713136,
+      "stdev_seconds": 0.025352554804370063,
+      "samples_seconds": [
+        0.27765965403523296,
+        0.2812773299519904,
+        0.28547726798569784,
+        0.29594847495900467,
+        0.34353923302842304,
+        0.38043624599231407,
+        0.305961784964893,
+        0.30940541403833777,
+        0.28456279798410833,
+        0.27817571797640994,
+        0.28612814197549596,
+        0.2799599560094066,
+        0.28105640603462234,
+        0.29177948500728235,
+        0.2893601090181619,
+        0.29604793299222365,
+        0.2860682239988819,
+        0.28305175597779453,
+        0.27802076999796554,
+        0.28069492301438004
+      ],
+      "profiled": false
+    },
+    {
+      "label": "parallel-final-b",
+      "warmup_runs": 3,
+      "mean_seconds": 0.2896969936933601,
+      "stdev_seconds": 0.013694243216129205,
+      "samples_seconds": [
+        0.28739182295976207,
+        0.2977988750208169,
+        0.27886975795263425,
+        0.27862747898325324,
+        0.2789174690260552,
+        0.27927630895283073,
+        0.2765614159870893,
+        0.28557298600208014,
+        0.2927805189974606,
+        0.29718825401505455,
+        0.30471722199581563,
+        0.29005312896333635,
+        0.28284104901831597,
+        0.2820567600429058,
+        0.2823654570383951,
+        0.2914751300122589,
+        0.2922724889940582,
+        0.2940263219643384,
+        0.33784415398258716,
+        0.283303273958154
+      ],
+      "profiled": false
+    },
+    {
+      "label": "parallel-trace",
+      "warmup_runs": 1,
+      "mean_seconds": 0.28653128701262176,
+      "stdev_seconds": 0.009247486299615724,
+      "samples_seconds": [
+        0.27607186301611364,
+        0.2898991880356334,
+        0.2936228099861182
+      ],
+      "profiled": true
+    }
+  ],
+  "nsight": {
+    "version": "2026.1.3",
+    "capture": "cuProfilerStart after initialization; one warmup plus three ordinary requests per trace",
+    "kernel_median_ms": {
+      "baseline": {
+        "hash": 176.287678,
+        "receipt": 9.3998975
+      },
+      "parallel": {
+        "hash": 176.3281635,
+        "receipt": 9.407281
+      },
+      "final": {
+        "hash": 176.2637995,
+        "receipt": 9.40357
+      }
+    },
+    "steady_request_kernel_window_ms": {
+      "baseline": [
+        1549.313,
+        1548.68,
+        1549.175
+      ],
+      "parallel": [
+        205.134,
+        200.576,
+        216.022
+      ],
+      "final": [
+        227.712,
+        225.478,
+        228.09
+      ]
+    },
+    "final_steady_all_eight_hash_overlap_ms": [
+      133.711,
+      136.329,
+      133.587
+    ],
+    "ipc_open_calls_per_trace": 1816,
+    "ipc_open_median_us": {
+      "baseline": 62.012,
+      "parallel": 978.221,
+      "final": 65.427
+    }
+  },
+  "remote_artifacts": "/tmp/cuattest-blackwell-opt.2U5S32/results2",
+  "remote_experiment_scripts": "/tmp/cuattest-blackwell-opt.2U5S32/tools"
+}
