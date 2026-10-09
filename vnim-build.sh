@@ -5,8 +5,9 @@
 #   ./vnim-build.sh MULTI               # same as above (explicit)
 #   VNIM_CPU=1 ./vnim-build.sh          # CPU base (builds + runs locally); default base is GPU
 #   NGC_API_KEY=nvapi-... ./vnim-build.sh nvcr.io/nim/meta/llama-3.2-3b-instruct   # a specific NIM
+#   BAKE_MODEL=org/model [HF_TOKEN=hf_...] ./vnim-build.sh   # bake the weights into the image
 #
-# Overrides: EQTY_SDK_WHL MIDDLEWARE_WHL VNIM_PLATFORM BASE_IMAGE BASE_TAG MODEL_NAME IMAGE_REF
+# Overrides: EQTY_SDK_WHL MIDDLEWARE_WHL VNIM_PLATFORM BASE_IMAGE BASE_TAG MODEL_NAME IMAGE_REF BAKE_MODEL
 set -euo pipefail
 
 # no attestations: the manifest index they add won't load into the classic docker store
@@ -19,7 +20,7 @@ main() {
 
     # amd64-only wheels → always build linux/amd64 (emulated on arm64 hosts)
     SDK_WHL="${EQTY_SDK_WHL:-eqty_sdk-2.4.2-cp38-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl}"
-    MW_WHL="${MIDDLEWARE_WHL:-eqty_vcomp_middleware-0.0.14-py3-none-any.whl}"
+    MW_WHL="${MIDDLEWARE_WHL:-eqty_vcomp_middleware-0.0.15-py3-none-any.whl}"
     PLATFORM="${VNIM_PLATFORM:-linux/amd64}"
 
     if [[ -n "${VNIM_CPU:-}" ]]; then
@@ -83,6 +84,11 @@ build_multinim() {
     esac
 
     echo "    user: ${IMAGE_USER:-root}  flavor: $FLAVOR  output: $OUTPUT_REF"
+    local BAKE_ARGS=()
+    if [[ -n "${BAKE_MODEL:-}" ]]; then
+        BAKE_ARGS+=(--build-arg "BAKE_MODEL=${BAKE_MODEL}")
+        [[ -n "${HF_TOKEN:-}" ]] && BAKE_ARGS+=(--secret "id=hf_token,env=HF_TOKEN")
+    fi
     local iid; iid="$(mktemp)"
     docker buildx build --load --iidfile "$iid" -t "$OUTPUT_REF" "${COMMON_ARGS[@]}" \
         --build-arg "BASE_IMAGE=${BASE_IMAGE}" \
@@ -90,6 +96,7 @@ build_multinim() {
         --build-arg "PATCH_FLAVOR=${FLAVOR}" \
         --build-arg "IMAGE_USER=${IMAGE_USER:-root}" \
         --build-arg "MODEL_NAME=${MODEL_NAME:-}" \
+        ${BAKE_ARGS[@]+"${BAKE_ARGS[@]}"} \
         -f "$BUILD_DIR/Dockerfile.vllm" "$BUILD_DIR"
     # containerd-store buildx may not apply -t; re-tag by built id if so
     docker image inspect "$OUTPUT_REF" >/dev/null 2>&1 || docker tag "$(cat "$iid")" "$OUTPUT_REF"
@@ -160,6 +167,22 @@ build_nim() {
 render_context() {
     local d="$1"; mkdir -p "$d/patches"
 
+cat > "$d/eqty_vnim_logging.py" <<'__EQTY_LOGGING__'
+"""Loaded by eqty_vnim_logging.pth at interpreter start. vLLM and NIM configure only their own
+loggers, so eqty_middleware records (EQTY_DEBUG timings included) would be dropped; print them."""
+import logging
+import sys
+import time
+
+_handler = logging.StreamHandler(sys.stdout)
+_fmt = logging.Formatter("%(asctime)s.%(msecs)03dZ %(name)s %(levelname)s %(message)s", "%Y-%m-%dT%H:%M:%S")
+_fmt.converter = time.gmtime
+_handler.setFormatter(_fmt)
+logging.getLogger("eqty_middleware").addHandler(_handler)
+# a host that does route root would otherwise print these twice
+logging.getLogger("eqty_middleware").propagate = False
+__EQTY_LOGGING__
+
 cat > "$d/Dockerfile" <<'__DOCKERFILE__'
 ARG BASE_IMAGE=nvcr.io/nim/meta/llama-3.2-3b-instruct
 ARG BASE_TAG=latest
@@ -170,7 +193,7 @@ USER root
 
 ARG PATCH_FAMILY=nim_sdk
 ARG IMAGE_USER=nim
-ARG MIDDLEWARE_WHL=eqty_vcomp_middleware-0.0.14-py3-none-any.whl
+ARG MIDDLEWARE_WHL=eqty_vcomp_middleware-0.0.15-py3-none-any.whl
 # set to a context wheel → install eqty from local wheels, no network; empty → private index
 ARG EQTY_SDK_WHL=
 ARG EQTY_PYPI_HOST=eqty-pypi.westus2.cloudapp.azure.com
@@ -181,6 +204,7 @@ RUN apt-get update \
 
 COPY patches/ /tmp/patches/
 COPY *.whl /tmp/wheels/
+COPY eqty_vnim_logging.py /tmp/eqty/
 
 # Apply the patch for this NIM's structural family.
 #   nim_sdk: V1/V2 differ by the serve_http call shape; detect per-file, apply the matching patch.
@@ -260,7 +284,13 @@ RUN --mount=type=secret,id=eqty_pypi_user \
             --extra-index-url "http://${PYPI_USER}:${PYPI_PASSWORD}@${EQTY_PYPI_HOST}/simple/" \
             --trusted-host "${EQTY_PYPI_HOST}"; \
     fi; \
-    rm -rf /tmp/patches /tmp/wheels
+    hooked=""; \
+    for sp in $(find /opt /usr/local/lib /usr/lib -path '*-packages/eqty_middleware/__init__.py' -printf '%h\n' 2>/dev/null | xargs -r -n1 dirname); do \
+        cp /tmp/eqty/eqty_vnim_logging.py "$sp/" && echo "import eqty_vnim_logging" > "$sp/eqty_vnim_logging.pth"; \
+        hooked="yes"; \
+    done; \
+    [ -n "$hooked" ] || { echo "FATAL: eqty_middleware site-packages not found for the log hook" >&2; exit 1; }; \
+    rm -rf /tmp/patches /tmp/wheels /tmp/eqty
 
 # infra/probe/metadata routes are never attested
 ENV EQTY_MIDDLEWARE_EXCLUDE_PATHS="/health*,/v1/models,/v1/health/*,/v1/metrics,/v1/version,/v1/license,/v1/manifest,/v1/metadata,/docs*,/openapi*,/redoc*"
@@ -303,7 +333,7 @@ USER root
 ARG PATCH_FLAVOR=vllm_serve_http
 ARG IMAGE_USER=root
 ARG MODEL_NAME=""
-ARG MIDDLEWARE_WHL=eqty_vcomp_middleware-0.0.14-py3-none-any.whl
+ARG MIDDLEWARE_WHL=eqty_vcomp_middleware-0.0.15-py3-none-any.whl
 ARG EQTY_SDK_VERSION=2.4.2
 # set to a context wheel → install eqty from local wheels, no network; empty → private index
 ARG EQTY_SDK_WHL=
@@ -315,6 +345,7 @@ RUN apt-get update \
 
 COPY patches/vllm_serve_http.patch patches/vllm_pooling.patch patches/vllm_launchers.patch /tmp/patches/
 COPY *.whl /tmp/wheels/
+COPY eqty_vnim_logging.py /tmp/eqty/
 COPY vllm-entrypoint.sh /opt/eqty/entrypoint.sh
 
 # patch every vllm install and verify the middleware landed
@@ -357,11 +388,30 @@ RUN --mount=type=secret,id=eqty_pypi_user \
             --extra-index-url "http://${PYPI_USER}:${PYPI_PASSWORD}@${EQTY_PYPI_HOST}/simple/" \
             --trusted-host "${EQTY_PYPI_HOST}"; \
     fi; \
-    rm -rf /tmp/patches /tmp/wheels
+    hooked=""; \
+    for sp in $(find /opt /usr/local/lib /usr/lib -path '*-packages/eqty_middleware/__init__.py' -printf '%h\n' 2>/dev/null | xargs -r -n1 dirname); do \
+        cp /tmp/eqty/eqty_vnim_logging.py "$sp/" && echo "import eqty_vnim_logging" > "$sp/eqty_vnim_logging.pth"; \
+        hooked="yes"; \
+    done; \
+    [ -n "$hooked" ] || { echo "FATAL: eqty_middleware site-packages not found for the log hook" >&2; exit 1; }; \
+    rm -rf /tmp/patches /tmp/wheels /tmp/eqty
 
 # infra/probe/metadata routes are never attested
 ENV EQTY_MIDDLEWARE_EXCLUDE_PATHS="/health*,/ping,/version,/metrics,/v1/models,/docs*,/openapi*,/redoc*"
 ENV EQTY_MIDDLEWARE_ENABLE_COSAI="true"
+
+# optional weight bake -> self-contained image for air-gapped deploys. The
+# lineage manifest and card are excluded: a file the server never downloads
+# would change the snapshot hash and split the model CID from its manifest.
+ARG BAKE_MODEL=""
+RUN --mount=type=secret,id=hf_token \
+    set -eux; \
+    if [ -n "${BAKE_MODEL}" ]; then \
+        [ "${IMAGE_USER}" = root ] || { echo "FATAL: BAKE_MODEL assumes a root-user base" >&2; exit 1; }; \
+        python3 -c "import os; from huggingface_hub import snapshot_download; \
+tok = open('/run/secrets/hf_token').read().strip() if os.path.exists('/run/secrets/hf_token') else None; \
+snapshot_download('${BAKE_MODEL}', token=tok, ignore_patterns=['eqty.manifest.json', 'README.md', '.gitattributes'])"; \
+    fi
 
 RUN mkdir -p /.eqty_sdk /tmp/api_logs \
  && chown ${IMAGE_USER} /.eqty_sdk /tmp/api_logs \

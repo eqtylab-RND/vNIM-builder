@@ -10,7 +10,7 @@ Published vNIMs are https://github.com/orgs/eqtylab/packages?tab=packages&q=vcom
 .
 ├── vnim-build.sh                       local: pull → detect → build
 ├── eqty_sdk-2.4.2-...whl
-├── eqty_vcomp_middleware-0.0.14-...whl
+├── eqty_vcomp_middleware-0.0.15-...whl
 ```
 
 ## Local build
@@ -23,7 +23,17 @@ export NGC_API_KEY=nvapi-...
 
 # override output tag
 IMAGE_REF=my-thing:dev ./build.sh nvcr.io/nim/...
+
+# multinim vLLM image with the weights baked in (air-gapped deploys);
+# HF_TOKEN only needed for gated/private repos
+BAKE_MODEL=org/model HF_TOKEN=hf_... ./vnim-build.sh
 ```
+
+The bake excludes `eqty.manifest.json`, `README.md` and `.gitattributes` from the snapshot - the server never downloads them, and an extra file would change the snapshot hash and the model CID. Set `HF_HUB_OFFLINE=1` at deploy to pin the pod to the baked weights.
+
+Middleware 0.0.15+ resolves a `--served-model-name` alias back to the real model id.
+
+Middleware logs: vLLM and NIM configure only their own loggers, so the build drops `eqty_vnim_logging.pth` next to `eqty_middleware` to print its records on stdout with UTC millisecond timestamps. Run with `-e EQTY_DEBUG=true` to add the per-manifest timings (`eqty_middleware.timing`: queued, written stages, GET 404 state, send). The handler sets `propagate=False`, so a NIM that routes the root logger no longer sees these records; they go only to stdout.
 
 What `build.sh` does:
 
