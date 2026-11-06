@@ -19,7 +19,7 @@ main() {
     cd "$(dirname "$0")"
 
     # amd64-only wheels → always build linux/amd64 (emulated on arm64 hosts)
-    SDK_WHL="${EQTY_SDK_WHL:-eqty_sdk-2.4.2-cp38-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl}"
+    SDK_WHL="${EQTY_SDK_WHL:-eqty_sdk-2.5.1-cp38-abi3-manylinux2014_x86_64.manylinux_2_17_x86_64.whl}"
     MW_WHL="${MIDDLEWARE_WHL:-eqty_vcomp_middleware-0.0.15-py3-none-any.whl}"
     PLATFORM="${VNIM_PLATFORM:-linux/amd64}"
 
@@ -334,7 +334,7 @@ ARG PATCH_FLAVOR=vllm_serve_http
 ARG IMAGE_USER=root
 ARG MODEL_NAME=""
 ARG MIDDLEWARE_WHL=eqty_vcomp_middleware-0.0.15-py3-none-any.whl
-ARG EQTY_SDK_VERSION=2.4.2
+ARG EQTY_SDK_VERSION=2.5.1
 # set to a context wheel → install eqty from local wheels, no network; empty → private index
 ARG EQTY_SDK_WHL=
 ARG EQTY_PYPI_HOST=eqty-pypi.westus2.cloudapp.azure.com
